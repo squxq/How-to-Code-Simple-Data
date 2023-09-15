@@ -76,8 +76,35 @@
 
 ; step 4 - code the function body
 (define esArr (list "s" "ss" "sh" "ch" "x" "z"))
+(define vowels (list "a" "e" "i" "o" "u"))
 
 (define (plural word)
-  (if (member (substring word (- (string-length word) 2) (string-length word)) esArr)
-      (string-append word "es")
-      word))
+  (cond
+    ; Check for words ending in "us" except for "us" itself
+    ((string=? (substring word (- (string-length word) 2) (string-length word)) "us")
+     (string-append (substring word 0 (- (string-length word) 2)) "i"))
+    
+    ; Check for words ending in "is" except for "iris"
+    ((and (string=? (substring word (- (string-length word) 2) (string-length word)) "is")
+          (not (string=? word "iris")))
+     (string-append (substring word 0 (- (string-length word) 2)) "es"))
+    
+    ; Check for words ending in certain suffixes
+    ((or (member (substring word (- (string-length word) 1) (string-length word)) esArr)
+         (member (substring word (- (string-length word) 2) (string-length word)) esArr))
+     (string-append word "es"))
+    
+    ; Check for words ending in "y" after a consonant
+    ((and (not (member (substring word (- (string-length word) 2) (- (string-length word) 1)) vowels))
+          (string=? (substring word (- (string-length word) 1) (string-length word)) "y"))
+     (string-append (substring word 0 (- (string-length word) 1)) "ies"))
+    
+    ; Check for words ending in "on"
+    ((string=? (substring word (- (string-length word) 2) (string-length word)) "on")
+     (string-append (substring word 0 (- (string-length word) 2)) "a"))
+    
+    ; Default case: just add "s" to the word
+    (else (string-append word "s"))))
+
+; step 5
+; run the code and check for test errors
