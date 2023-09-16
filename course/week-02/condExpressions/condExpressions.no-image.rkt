@@ -35,44 +35,6 @@
 ; both () and [] are equivalent, but by convention, we use [] around question/answer pairs in cond.
 ; this makes the cond easier to read.
 
-;Problem:
-;
-;Given the following definition:   
-;
-;(define (absval n)
-;  (cond [(> n 0) n]
-;        [(< n 0) (* -1 n)]
-;        [else 0]))
-;
-;Hand step the execution of:
-;
-;(absval -3)
-
-(define (absval n)
-  (cond [(> n 0) n]
-        [(< n 0) (* -1 n)]
-        [else 0]))
-
-(absval -3)
-
-; step 1
-(cond ((> -3 0) -3) ((< -3 0) (* -1 -3)) (else 0))
-
-; step 2
-(cond (#false -3) ((< -3 0) (* -1 -3)) (else 0))
-
-; step 3
-(cond ((< -3 0) (* -1 -3)) (else 0))
-
-; step 4
-(cond (#true (* -1 -3)) (else 0))
-
-; step 5
-(* -1 -3)
-
-; step 6 - output
-3
-
 ; expression
 (cond [(> 1 2) "bigger"]
 	[(= 1 2) "equal"]
