@@ -88,9 +88,10 @@
 ;; start the world with: (main empty)
 
 (define (main sf)
-  (big-bang sf                             ; Snowflakes
-            (on-tick update-snowflakes)    ; Snowflakes -> Snowflakes
-            (to-draw render-snowflakes)))  ; Snowflakes -> Image
+  (big-bang sf                              ; Snowflakes
+            (on-tick update-snowflakes)     ; Snowflakes -> Snowflakes
+            (to-draw render-snowflakes)     ; Snowflakes -> Image
+            (on-mouse reset-snowflakes)))   ; Snowflakes Integer Integer MouseEvent -> SnowFlakes
 
 
 ;; Snowflakes -> Snowflakes
@@ -255,3 +256,30 @@
   (if (<= dr0 9)
       (make-flake (random (+ WIDTH 1)) Y0 R0 (+ (random 9) 1) (- dr0 10) (+ (random 5) 1))
       (make-flake (random (+ WIDTH 1)) Y0 R0 (+ (random 9) 1) (+ dr0 1) (+ (random 5) 1))))
+
+
+;; Snowflakes Integer Integer MouseEvent -> SnowFlakes
+;; on "button-down" delete all the flakes from the snowflakes list
+
+;; Stub:
+#;
+(define (reset-snowflakes sf x y me) SF0)
+
+;; Tests:
+(check-expect (reset-snowflakes SF0 742 124 "button-down") empty)
+(check-expect (reset-snowflakes SF1 742 124 "button-down") empty)
+(check-expect (reset-snowflakes SF1 742 124 "move") SF1)
+(check-expect (reset-snowflakes SF2 742 124 "button-down") empty)
+(check-expect (reset-snowflakes SF3 742 124 "button-down") empty)
+(check-expect (reset-snowflakes SF4 742 124 "button-down") empty)
+(check-expect (reset-snowflakes SF4 742 124 "move") SF4)
+
+;; Template:
+#;
+(define (reset-snowflakes sf x y me)
+  (cond [(mouse=? me "button-down") (... x y sf)]
+        [else (... x y sf)]))
+
+(define (reset-snowflakes sf x y me)
+  (cond [(mouse=? me "button-down") empty]
+        [else sf]))
