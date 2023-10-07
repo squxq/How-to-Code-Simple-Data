@@ -54,10 +54,10 @@
 (define (lookup accs n) "")
 
 ;; Tests:
-(check-expect (lookup ACS1 "John") false)
-(check-expect (lookup ACS2 "John") false)
-(check-expect (lookup ACS2 "abc") true)
-(check-expect (lookup ACS2 "ilk") true)
+(check-expect (lookup ACS1 6) false)
+(check-expect (lookup ACS2 2) false)
+(check-expect (lookup ACS2 4) "dcj")
+(check-expect (lookup ACS2 7) "ruf")
 
 ;; Template: <used template from Accounts>
 #;
@@ -71,5 +71,6 @@
 (define (lookup accs n)
   (cond [(empty? accs) false]
         [else
-         (or (string=? (account-name (first accs)) n)
-              (lookup (rest accs) n))]))
+         (if (= (account-num (first accs)) n)
+             (account-name (first accs))
+             (lookup (rest accs) n))]))
