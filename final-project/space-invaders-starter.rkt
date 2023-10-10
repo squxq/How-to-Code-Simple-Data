@@ -35,14 +35,14 @@
               (above (rectangle 5 10 "solid" "black")       ;gun
                      (rectangle 20 10 "solid" "black"))))   ;main body
 
+(define MISSILE (ellipse 5 15 "solid" "red"))
+
 (define TANK-WIDTH/2 (/ (image-width TANK) 2))
 (define TANK-HEIGHT/2 (/ (image-height TANK) 2))
 (define INVADER-WIDTH/2 (/ (image-width INVADER) 2))
 (define INVADER-HEIGHT/2 (/ (image-height INVADER) 2))
 (define MISSILE-WIDTH/2 (/ (image-width MISSILE) 2))
 (define MISSILE-HEIGHT/2 (/ (image-height MISSILE) 2))
-
-(define MISSILE (ellipse 5 15 "solid" "red"))
 
 
 ;; =================
@@ -192,7 +192,7 @@
   (big-bang g                   ; Game
     (on-tick update-game)       ; Game -> Game
     (to-draw render-game)       ; Game -> Image
-    (on-key shoot-missile)))    ; Game KeyEvent -> Game
+    (on-key on-key-game)))    ; Game KeyEvent -> Game
 
 
 ;; Game -> Game
@@ -413,32 +413,79 @@
 
 
 ;; Game KeyEvent -> Game
-;; on "space" (space bar) pressed, create a new missile with (x, y) coordinates on the screen
+;; produce a new missile when " " (space bar) is pressed
+;;         a new x position for the game's tank when "arrow-left" or "arrow-right" are pressed
+;;         the current state of the game when any other key is pressed
 
 ;; Stub:
 #;
-(define (shoot-missile s ke) G0)
+(define (on-key-game g ke) g)
 
 ;; Tests:
-(check-expect (shoot-missile G0 " ") ; "space" key is pressed
+(check-expect (on-key-game G0 " ")
               (make-game empty (list (make-missile (tank-x (game-tank G0)) (- HEIGHT TANK-HEIGHT/2))) T0))
-(check-expect (shoot-missile G0 "r") G0) ; any other key is pressed
-(check-expect (shoot-missile G1 " ")
-              (make-game empty (list (make-missile (tank-x (game-tank G1)) (- HEIGHT TANK-HEIGHT/2))) T1))
-(check-expect (shoot-missile G2 " ")
+(check-expect (on-key-game G1 "left")
+              (make-game empty empty (make-tank (+ (tank-x (game-tank G1)) -2) -1)))
+(check-expect (on-key-game G2 " ")
               (make-game (list I1)
                          (cons (make-missile (tank-x (game-tank G2)) (- HEIGHT TANK-HEIGHT/2)) (list M1)) T1))
-(check-expect (shoot-missile G3 " ")
+(check-expect (on-key-game G3 "right")
               (make-game (list I1 I2)
-                         (cons (make-missile (tank-x (game-tank G3)) (- HEIGHT TANK-HEIGHT/2)) (list M1 M2)) T1))
+                         (list M1 M2)
+                         (make-tank (+ (tank-x (game-tank G3)) 2) 1)))
+(check-expect (on-key-game G2 "r") G2)
 
 ;; Template:
 #;
-(define (shoot-missile s ke)
-  (cond [(key=? " " ke) (... (fn-for-game s))]
-        [else (... (fn-for-game s))]))
+(define (on-key-game g ke)
+  (cond [(key=? " " ke) (... (fn-for-game g))]
+        [(key=? "left" ke) (... (fn-for-game g))]
+        [(key=? "right" ke) (... (fn-for-game g))]
+        [else (... (fn-for-game g))]))
 
-(define (shoot-missile s ke)
-  (cond [(key=? " " ke) (make-game (game-invaders s)
-          (cons (make-missile (tank-x (game-tank s)) (- HEIGHT TANK-HEIGHT/2)) (game-missiles s)) (game-tank s))]
-        [else s]))
+(define (on-key-game g ke)
+  (cond [(key=? " " ke)
+         (make-game (game-invaders g)
+                    (cons (make-missile (tank-x (game-tank g)) (- HEIGHT TANK-HEIGHT/2)) (game-missiles g))
+                    (game-tank g))]
+        [(key=? "left" ke)
+         (make-game (game-invaders g) (game-missiles g)
+                    (make-tank (+ (tank-x (game-tank g)) (* TANK-SPEED -1)) -1))]
+        [(key=? "right" ke)
+         (make-game (game-invaders g) (game-missiles g)
+                    (make-tank (+ (tank-x (game-tank g)) (* TANK-SPEED 1)) 1))]
+        [else g]))
+
+
+;; Tank Integer[-1, 1] -> Tank
+;; given a tank, t, and a direction, dir, produce the next tank position according to the screen limits
+
+;; Stub:
+#;
+(define (update-tank t dir) t)
+
+(define T0 (make-tank (/ WIDTH 2) 1))   ;center going right
+(define T1 (make-tank 50 1))            ;going right
+(define T2 (make-tank 50 -1))           ;going left
+
+;; Tests:
+(check-expect (update-tank T0 1)
+              (make-tank (+ (tank-x T0) (* TANK-SPEED 1)) 1))
+(check-expect (update-tank T0 -) T0)
+(check-expect (update-tank T0 -1)
+              (make-tank (+ (tank-x T0) (* TANK-SPEED -1)) -1))
+(check-expect (update-tank T1 -1)
+              (make-tank (+ (tank-x T1) (* TANK-SPEED -1)) -1))
+(check-expect (update-tank T2 1)
+              (make-tank (+ (tank-x T2) (* TANK-SPEED 1)) 1))
+
+;; Template:
+#;
+(define (update-tank t dir)
+  (... t dir))
+
+(define (update-tank t dir)
+  (if (and (>= (+ (tank-x t) (* TANK-SPEED dir)) TANK-WIDTH/2)
+           (<= (+ (tank-x t) (* TANK-SPEED dir)) (- WIDTH TANK-WIDTH/2)))
+      (make-tank (+ (tank-x t) (* TANK-SPEED dir)) dir)
+      (make-tank )))
