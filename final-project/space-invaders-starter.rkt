@@ -267,10 +267,16 @@
 
 ;; Template: <used template from Invader>
 
+;; !!!
+;; Create border collision detection and fix invader movement (currently is not at 45deg)
 (define (update-invader i)
-  (make-invader (+ (invader-x i) INVADER-X-SPEED)
-                (+ (invader-y i) INVADER-Y-SPEED)
-                (invader-dx i)))
+  (cond [(and (>= (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i))) INVADER-WIDTH/2)
+           (<= (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i))) (- WIDTH INVADER-WIDTH/2)))
+      (make-invader (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i)))
+                    (+ (invader-y i) INVADER-Y-SPEED) (invader-dx i))]
+      [else
+       (make-invader (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i)))
+                    (+ (invader-y i) INVADER-Y-SPEED) (* (invader-dx i) -1))]))
 
 
 ;; ListOfMissile -> ListOfMissile
