@@ -68,22 +68,22 @@
 ;; - compound: 2 fields
 
 
-(define-struct invader (x y dx))
-;; Invader is (make-invader Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Natural[INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2] Natural)
+(define-struct invader (x y dir))
+;; Invader is (make-invader Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[- 2 * INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2] Integer[-1, 1])
 ;; interp. the invader is at (x, y) in screen coordinates
 ;;         the invader moves along x by dx pixels per clock tick
 
 ;; Examples:
-(define I1 (make-invader 150 100 12))           ;not landed, moving right
-(define I2 (make-invader 150 HEIGHT -10))       ;exactly landed, moving left
-(define I3 (make-invader 150 (+ HEIGHT 10) 10)) ;> landed, moving right
+(define I1 (make-invader 150 100 1))           ;not landed, moving right
+(define I2 (make-invader 150 HEIGHT -1))       ;exactly landed, moving left
+(define I3 (make-invader 150 (+ HEIGHT 10) 1)) ;> landed, moving right
 
 ;; Template:
 #;
 (define (fn-for-invader i)
   (... (invader-x i)       ; Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2]
-       (invader-y i)       ; Natural[INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2]
-       (invader-dx i)))    ; Natural
+       (invader-y i)       ;Integer[- 2 * INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2]
+       (invader-dir i)))    ; Integer[-1, 1]
 
 ;; Template rules used:
 ;; - compound: 3 fields
@@ -177,12 +177,13 @@
 ;; Template:
 #;
 (define (fn-for-game g)
-  (... (fn-for-loinvader (game-invaders g))
+  (... (fn-for-loi (game-invaders g))
        (fn-for-lom (game-missiles g))
        (fn-for-tank (game-tank g))))
 
 ;; Template rules used:
 ;; - compound: 3 fields
+
 
 ;; =====================
 ;; Function Definitions:
@@ -194,7 +195,8 @@
   (big-bang g                   ; Game
     (on-tick update-game)       ; Game -> Game
     (to-draw render-game)       ; Game -> Image
-    (on-key on-key-game)))      ; Game KeyEvent -> Game
+    (on-key on-key-game)        ; Game KeyEvent -> Game
+    (stop-when stop-game)))     ; Game -> Boolean
 
 
 ;; Game -> Game
@@ -210,12 +212,12 @@
 (check-expect (update-game G1)
               (make-game empty empty (update-tank T1 (tank-dir T1))))
 (check-expect (update-game G2)
-              (make-game (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dx I1)))
+              (make-game (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1)))
                          (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED)))
                          (update-tank T1 (tank-dir T1))))
 (check-expect (update-game G3)
-              (make-game (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dx I1))
-                               (make-invader (+ (invader-x I2) INVADER-X-SPEED) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dx I2)))
+              (make-game (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1))
+                               (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2))) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2)))
                          (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED))
                                (make-missile (missile-x M2) (- (missile-y M2) MISSILE-SPEED)))
                          (update-tank T1 (tank-dir T1))))
@@ -238,10 +240,11 @@
 ;; Tests:
 (check-expect (update-invaders empty) empty)
 (check-expect (update-invaders (list I1))
-              (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dx I1))))
+              (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1))))
 (check-expect (update-invaders (list I1 I2))
-              (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dx I1))
-                               (make-invader (+ (invader-x I2) INVADER-X-SPEED) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dx I2))))
+              (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1))
+                               (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2)))
+                                             (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2))))
 
 ;; Template: <used template from ListOfInvader>
 
@@ -261,22 +264,84 @@
 
 ;; Tests:
 (check-expect (update-invader I1)
-              (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dx I1)))
+              (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1)))
 (check-expect (update-invader I2)
-              (make-invader (+ (invader-x I2) INVADER-X-SPEED) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dx I2)))
+              (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2))) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2)))
+(check-expect (update-invader (make-invader (- WIDTH INVADER-WIDTH/2 1) 150 1))
+              (make-invader (- (* 2 (- WIDTH INVADER-WIDTH/2)) (- WIDTH INVADER-WIDTH/2 1) (* INVADER-X-SPEED 1))
+                       (+ 150 (* INVADER-Y-SPEED (abs 1)))
+                       (* 1 -1)))
+(check-expect (update-invader (make-invader (+ INVADER-WIDTH/2 1) 150 -1))
+              (make-invader (- (* 2 INVADER-WIDTH/2) (+ INVADER-WIDTH/2 1) (* INVADER-X-SPEED -1))
+                       (+ 150 (* INVADER-Y-SPEED (abs -1)))
+                       (* -1 -1)))
 
 ;; Template: <used template from Invader>
 
-;; !!!
-;; Create border collision detection and fix invader movement (currently is not at 45deg)
 (define (update-invader i)
-  (cond [(and (>= (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i))) INVADER-WIDTH/2)
-           (<= (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i))) (- WIDTH INVADER-WIDTH/2)))
-      (make-invader (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i)))
-                    (+ (invader-y i) INVADER-Y-SPEED) (invader-dx i))]
-      [else
-       (make-invader (+ (invader-x i) (* INVADER-X-SPEED (invader-dx i)))
-                    (+ (invader-y i) INVADER-Y-SPEED) (* (invader-dx i) -1))]))
+  (update-invader-layer (invader-x i) (invader-dir i)
+            (+ (invader-x i) (* INVADER-X-SPEED (invader-dir i)))
+            (+ (invader-y i) INVADER-Y-SPEED)))
+
+
+;; Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[-1, 1] Natural Natural
+;; produce the next position of an invader given:
+;;         its current x position, x
+;;         its current direction, dir
+;;         its possible next x coordinate, next-x
+;;         its possible next y coordinate, next-y
+
+;; Stub:
+#;
+(define (update-invader-layer x dir next-x next-y) I1)
+
+;; Tests:
+(check-expect (update-invader-layer 150 1 152 160)
+              (make-invader 152 160 1))
+(check-expect (update-invader-layer (- WIDTH INVADER-WIDTH/2 1) 1 (+ WIDTH INVADER-WIDTH/2 1) 160)
+              (out-of-border (- WIDTH INVADER-WIDTH/2 1) 1 160 (- WIDTH INVADER-WIDTH/2)))
+(check-expect (update-invader-layer (+ INVADER-WIDTH/2 1) -1 (- INVADER-WIDTH/2 1) 160)
+              (out-of-border (+ INVADER-WIDTH/2 1) -1 160 INVADER-WIDTH/2))
+
+;; Template:
+#;
+(define (update-invader-layer x dir next-x next-y)
+  (... x dir next-x next-y))
+
+(define (update-invader-layer x dir next-x next-y)
+  (cond [(and (>= next-x INVADER-WIDTH/2) (<= next-x (- WIDTH INVADER-WIDTH/2)))
+         (make-invader next-x next-y dir)]
+        [(< next-x INVADER-WIDTH/2)
+         (out-of-border x dir next-y INVADER-WIDTH/2)]
+        [(> next-x (- WIDTH INVADER-WIDTH/2))
+         (out-of-border x dir next-y (- WIDTH INVADER-WIDTH/2))]))
+
+
+;;  Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[-1, 1] Natural (INVADER-WIDTH/2 || WIDTH - INVADER-WIDTH/2)
+;; produce the next position of an invader whose predicted position is out of bounds
+;;         either less than INVADER-WIDTH/2
+;;         or greater than WIDTH - INVADER-WIDTH/2
+
+;; Stub:
+#;
+(define (out-of-border x dir next-y border) I1)
+
+;; Tests:
+(check-expect (out-of-border (- WIDTH INVADER-WIDTH/2 1) 1 160 (- WIDTH INVADER-WIDTH/2))
+              (make-invader (- (* 2 (- WIDTH INVADER-WIDTH/2))
+                (- WIDTH INVADER-WIDTH/2 1) (* INVADER-X-SPEED 1)) 160 -1))
+(check-expect (out-of-border (+ INVADER-WIDTH/2 1) -1 160 INVADER-WIDTH/2)
+              (make-invader (- (* 2 INVADER-WIDTH/2)
+                (+ INVADER-WIDTH/2 1) (* INVADER-X-SPEED -1)) 160 1))
+
+;; Template:
+#;
+(define (out-of-border x dir next-y border)
+  (... x dir next-y border))
+
+(define (out-of-border x dir next-y border)
+  (make-invader (- (* 2 border) x (* INVADER-X-SPEED dir))
+                next-y (* dir -1)))
 
 
 ;; ListOfMissile -> ListOfMissile
@@ -340,12 +405,12 @@
 (check-random (create-invader empty (random INVADE-RATE))
               (if (< (random INVADE-RATE) 3)
                   (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                          (- 0 (* INVADER-HEIGHT/2 2)) 10) empty)
+                          (- 0 (* INVADER-HEIGHT/2 2)) (- (random 3) 1)) empty)
                   empty))
 (check-random (create-invader (list I1 I2) (random INVADE-RATE))
               (if (< (random INVADE-RATE) 3)
                   (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                          (- 0 (* INVADER-HEIGHT/2 2)) 10) (list I1 I2))
+                          (- 0 (* INVADER-HEIGHT/2 2)) (- (random 3) 1)) (list I1 I2))
                   (list I1 I2)))
 
 ;; Template:
@@ -357,8 +422,30 @@
 (define (create-invader loi r)
   (if (< r 3)
       (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                          (- 0 (* INVADER-HEIGHT/2 2)) 10) loi)
+                          (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 4))) loi)
       loi))
+
+
+;; Natural[0, 3] -> Integer =1 || =-1
+;; given a random natural number between 0 and 3, n, produce either 1 or -1
+
+;; Stub:
+#;
+(define (invader-direction n) n)
+
+;; Tests:
+(check-expect (invader-direction 0) -1)
+(check-expect (invader-direction 1) -1)
+(check-expect (invader-direction 2) 1)
+(check-expect (invader-direction 3) 1)
+
+;; Template:
+#;
+(define (invader-direction n)
+  (... n))
+
+(define (invader-direction n)
+  (if (>= n 2) 1 -1))
 
 
 ;; Game -> Image
@@ -437,12 +524,6 @@
         [else
          (place-image MISSILE (missile-x (first lom)) (missile-y (first lom))
               (render-missiles (rest lom)))]))
-
-
-
-
-
-
 
 
 ;; Game KeyEvent -> Game
@@ -543,10 +624,75 @@
   (... t dir))
 
 (define (update-tank t dir)
-  (cond [(and (>= (+ (tank-x t) (* TANK-SPEED dir)) TANK-WIDTH/2)
-           (<= (+ (tank-x t) (* TANK-SPEED dir)) (- WIDTH TANK-WIDTH/2)))
-      (make-tank (+ (tank-x t) (* TANK-SPEED dir)) dir)]
-      [(< (+ (tank-x t) (* TANK-SPEED dir)) TANK-WIDTH/2)
-       (make-tank TANK-WIDTH/2 0)]
-      [else
-       (make-tank (- WIDTH TANK-WIDTH/2) 0)]))
+  (update-tank-layer (tank-x t) dir (+ (tank-x t) (* TANK-SPEED dir))))
+
+
+;; Natural[TANK-WIDTH/2, WIDTH - TANK-WIDTH/2] Integer[-1, 1] Natural
+;; produce the next tank position given, its current x position, x,
+;;         its direction, dir,
+;;         its possible next x-coordinate, next-x  
+
+;; Stub:
+#;
+(define (update-tank-layer x dir next-x) T0)
+
+;; Tests:
+(check-expect (update-tank-layer 150 1 152)
+              (make-tank 152 1))
+(check-expect (update-tank-layer (- WIDTH TANK-WIDTH/2 1) 1 (+ (- WIDTH TANK-WIDTH/2 1) (* TANK-SPEED 1)))
+              (make-tank (- WIDTH TANK-WIDTH/2) 0))
+(check-expect (update-tank-layer (+ TANK-WIDTH/2 1) -1 (+ (+ TANK-WIDTH/2 1) (* TANK-SPEED -1)))
+              (make-tank TANK-WIDTH/2 0))
+
+;; Template:
+#;
+(define (update-tank-layer x dir next-x)
+  (... x dir next-x))
+
+(define (update-tank-layer x dir next-x)
+  (cond [(and (>= next-x TANK-WIDTH/2) (<= next-x (- WIDTH TANK-WIDTH/2)))
+         (make-tank next-x dir)]
+        [(< next-x TANK-WIDTH/2)
+         (make-tank TANK-WIDTH/2 0)]
+        [(> next-x (- WIDTH TANK-WIDTH/2))
+         (make-tank (- WIDTH TANK-WIDTH/2) 0)]))
+
+
+;; Game -> Boolean
+;; return true if a single invader's y-coordinate is HEIGHT - INVADER-HEIGHT/2
+
+;; Stub:
+#;
+(define (stop-game g) false)
+
+;; Tests:
+(check-expect (stop-game G0) false)
+(check-expect (stop-game G1) false)
+(check-expect (stop-game G2) false)
+(check-expect (stop-game G3) true)
+
+;; Template: <used template from Game>
+
+(define (stop-game g)
+  (check-invaders-y (game-invaders g)))
+
+
+;; ListOfInvader -> Boolean
+;; given a list of integer, loi, and return false if all its invader's y coordinate is less than HEIGHT - INVADER-HEIGHT/2
+
+;; Stub:
+#;
+(define (check-invaders-y loi) loi)
+
+;; Tests:
+(check-expect (check-invaders-y empty) false)
+(check-expect (check-invaders-y (list I1)) false)
+(check-expect (check-invaders-y (list I1 I2)) true)
+
+;; Template: <used template from ListOfInvader>
+
+(define (check-invaders-y loi)
+  (cond [(empty? loi) false]
+        [else
+         (or (>= (invader-y (first loi)) (- HEIGHT INVADER-HEIGHT/2))
+              (check-invaders-y (rest loi)))]))
