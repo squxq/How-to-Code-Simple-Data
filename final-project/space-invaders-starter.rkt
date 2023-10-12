@@ -225,9 +225,69 @@
 ;; Template: <used template from Game>
 
 (define (update-game g)
-  (make-game (create-invader (update-invaders (game-invaders g)) (random INVADE-RATE))
+  (check-collisions (make-game (create-invader (update-invaders (game-invaders g)) (random INVADE-RATE))
        (update-missiles (game-missiles g))
-       (update-tank (game-tank g) (tank-dir (game-tank g)))))
+       (update-tank (game-tank g) (tank-dir (game-tank g))))))
+
+
+;; Game -> Game
+;; check the given game, g, for collisions between invaders and missiles
+
+;; Stub:
+#;
+(define (check-collisions g) g)
+
+;; Tests:
+(check-expect (check-collisions G0) G0)
+(check-expect (check-collisions G1) G1)
+(check-expect (check-collisions G2) G2)
+(check-expect (check-collisions G3)
+              (make-game (list I2) (list M1) T1))
+
+;; Template: <used template from Game>
+
+(define (check-collisions g)
+  (make-game (check-collisions-layer (game-invaders g) (game-missiles g))
+       (check-collisions-layer (game-missiles g) (game-invaders g))
+       (game-tank g)))
+
+
+;; ListOfInvader ListOfMissile -> ListOfInvader
+;; produce a new list o
+;; !!!
+;; Stub:
+#;
+(define (check-collisions-layer loi lom) loi)
+
+;; Tests:
+(check-expect (check-collisions-layer empty empty) empty)
+(check-expect (check-collisions-layer empty (list M1)) empty)
+(check-expect (check-collisions-layer (list I1) empty) (list I1))
+(check-expect (check-collisions-layer (list I1 I2) (list M1 M2)) (list I2))
+
+;; Template: <used template from ListOfInvader>
+#;
+(define (check-collisions-layer loi lom)
+  (cond [(empty? loi) (... (fn-for-lom lom))]
+        [else
+         (... (fn-for-lom lom)
+              (fn-for-invader (first loi))
+              (check-collisions-layer (rest loi) (... (fn-for-lom lom))))]))
+
+(define (check-collisions-invaders loi lom)
+  (cond [(or (empty? loi) (empty? lom)) loi]
+        [else
+         (if (not (invader-collides? (first loi) lom))
+             (cons (first loi) (check-collisions-invaders (rest loi) lom))
+             (check-collisions-invaders (rest loi) lom))]))
+
+
+;; Invader ListOfMissile -> Boolean
+;; produce true if given invader, i, collides with at least one of the missiles in given list of missiles, lom
+;; !!!
+;; Stub:
+#;
+(define (invader-collides? i lom) false)
 
 
 ;; ListOfInvader -> ListOfInvader
