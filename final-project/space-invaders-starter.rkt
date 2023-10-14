@@ -216,78 +216,161 @@
                          (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED)))
                          (update-tank T1 (tank-dir T1))))
 (check-expect (update-game G3)
-              (make-game (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1))
-                               (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2))) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2)))
-                         (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED))
-                               (make-missile (missile-x M2) (- (missile-y M2) MISSILE-SPEED)))
+              (make-game (list (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2))) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2)))
+                         (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED)))
                          (update-tank T1 (tank-dir T1))))
 
 ;; Template: <used template from Game>
 
 (define (update-game g)
-  (check-collisions (make-game (create-invader (update-invaders (game-invaders g)) (random INVADE-RATE))
-       (update-missiles (game-missiles g))
-       (update-tank (game-tank g) (tank-dir (game-tank g))))))
+  (collisions (make-game (update-invaders (game-invaders g))
+                         (update-missiles (game-missiles g))
+                         (update-tank (game-tank g) (tank-dir (game-tank g))))))
 
 
 ;; Game -> Game
-;; check the given game, g, for collisions between invaders and missiles
+;; given a state of a game at a certain time, g, create a game with filtered collisions and possible new invaders
 
 ;; Stub:
 #;
-(define (check-collisions g) g)
+(define (collisions g) g)
 
-;; Tests:
-(check-expect (check-collisions G0) G0)
-(check-expect (check-collisions G1) G1)
-(check-expect (check-collisions G2) G2)
-(check-expect (check-collisions G3)
-              (make-game (list I2) (list M1) T1))
+;; Tests: 
+(check-expect (collisions G0) G0)
+(check-expect (collisions G1) G1)
+(check-expect (collisions G2) G2)
+(check-expect (collisions G3)
+              (make-game (list I2) (list M1) (game-tank G3)))
 
 ;; Template: <used template from Game>
 
-(define (check-collisions g)
-  (make-game (check-collisions-layer (game-invaders g) (game-missiles g))
-       (check-collisions-layer (game-missiles g) (game-invaders g))
-       (game-tank g)))
+(define (collisions g)
+  (make-game (create-invader (collisions-invaders (game-invaders g) (game-missiles g)) (random INVADE-RATE))
+             (collisions-missiles (game-missiles g) (game-invaders g))
+             (game-tank g)))
 
 
 ;; ListOfInvader ListOfMissile -> ListOfInvader
-;; produce a new list o
-;; !!!
+;; filter the given list of invaders, loi, for any invader that has been hit by a missile in given list of missiles, lom
+;;        "hit" means: comparing the horizontal and vertical distances between the invader and the first missile
+;;                     to certain thresholds (half of the invader's width and an acceptable range on the y-axis)
+
 ;; Stub:
 #;
-(define (check-collisions-layer loi lom) loi)
+(define (collisions-invaders loi lom) loi)
 
 ;; Tests:
-(check-expect (check-collisions-layer empty empty) empty)
-(check-expect (check-collisions-layer empty (list M1)) empty)
-(check-expect (check-collisions-layer (list I1) empty) (list I1))
-(check-expect (check-collisions-layer (list I1 I2) (list M1 M2)) (list I2))
+(check-expect (collisions-invaders empty empty) empty)
+(check-expect (collisions-invaders (list I1 I2) empty) (list I1 I2))
+(check-expect (collisions-invaders empty (list M1)) empty)
+(check-expect (collisions-invaders (list I1) (list M1)) (list I1))
+(check-expect (collisions-invaders (list I1 I2) (list M1 M2)) (list I2))
 
 ;; Template: <used template from ListOfInvader>
 #;
-(define (check-collisions-layer loi lom)
+(define (collisions-invaders loi lom)
   (cond [(empty? loi) (... (fn-for-lom lom))]
         [else
          (... (fn-for-lom lom)
               (fn-for-invader (first loi))
-              (check-collisions-layer (rest loi) (... (fn-for-lom lom))))]))
+              (collisions-invaders (rest loi) (... (fn-for-lom lom))))]))
 
-(define (check-collisions-invaders loi lom)
-  (cond [(or (empty? loi) (empty? lom)) loi]
+(define (collisions-invaders loi lom)
+  (cond [(empty? loi) empty]
         [else
          (if (not (invader-collides? (first loi) lom))
-             (cons (first loi) (check-collisions-invaders (rest loi) lom))
-             (check-collisions-invaders (rest loi) lom))]))
+             (cons (first loi) (collisions-invaders (rest loi) lom))
+             (collisions-invaders (rest loi) lom))]))
 
 
 ;; Invader ListOfMissile -> Boolean
-;; produce true if given invader, i, collides with at least one of the missiles in given list of missiles, lom
-;; !!!
+;; check if given invader, i, collides with any of the elements in the given list of missiles, lom
+
 ;; Stub:
 #;
 (define (invader-collides? i lom) false)
+
+;; Tests:
+(check-expect (invader-collides? I1 empty) false)
+(check-expect (invader-collides? I2 (list M1)) false)
+(check-expect (invader-collides? I1 (list M1 M2)) true)
+
+;; Template: <used template from ListOfMissile>
+#;
+(define (fn-for-lom i lom)
+  (cond [(empty? lom) (... (fn-for-invader i))]
+        [else
+         (... (fn-for-invader i)
+              (fn-for-missile (first lom))
+              (fn-for-lom (... (fn-for-invader i)) (rest lom)))]))
+
+(define (invader-collides? i lom)
+  (cond [(empty? lom) false]
+        [else
+         (or (and (<= (abs (- (invader-x i) (missile-x (first lom)))) INVADER-WIDTH/2)
+                  (<= (abs (- (missile-y (first lom)) (invader-y i))) HIT-RANGE))
+             (invader-collides? i (rest lom)))]))
+
+
+;; ListOfMissile ListOfInvader -> ListOfMissile
+;; filter the given list of missiles, lom, for any missile that has hit an invader in the given list of invaders, loi
+;;        "hit" means:
+
+;; Stub:
+#;
+(define (collisions-missiles lom loi) lom)
+
+;; Tests:
+(check-expect (collisions-missiles empty empty) empty)
+(check-expect (collisions-missiles (list M1 M2) empty) (list M1 M2))
+(check-expect (collisions-missiles empty (list I1)) empty)
+(check-expect (collisions-missiles (list M1) (list I1)) (list M1))
+(check-expect (collisions-missiles (list M1 M2) (list I1 I2)) (list M1))
+
+;; Template: <used template from ListOfMissile>
+#;
+(define (collisions-missiles lom loi)
+  (cond [(empty? lom) (... (fn-for-loi loi))]
+        [else
+         (... (fn-for-loi loi)
+              (fn-for-missile (first lom))
+              (collisions-missiles (rest lom) (... (fn-for-loi loi))))]))
+
+(define (collisions-missiles lom loi)
+  (cond [(empty? lom) empty]
+        [else
+         (if (not (missile-collides? (first lom) loi))
+             (cons (first lom) (collisions-missiles (rest lom) loi))
+             (collisions-missiles (rest lom) loi))]))
+
+
+;; Missile ListOfInvader -> Boolean
+;; check if given missile, m, collides with any of the elements in the given list of invaders, loi
+
+;; Stub:
+#;
+(define (missile-collides? m loi) false)
+
+;; Tests:
+(check-expect (missile-collides? M1 empty) false)
+(check-expect (missile-collides? M2 (list I1)) true)
+(check-expect (missile-collides? M1 (list I1 I2)) false)
+
+;; Template: <used template from ListOfInvader>
+#;
+(define (missile-collides? m loi)
+  (cond [(empty? loi) (... (fn-for-missile m))]
+        [else
+         (... (fn-for-missile m)
+              (fn-for-invader (first loi))
+              (missile-collides? (... (fn-for-missile m)) (rest loi)))]))
+
+(define (missile-collides? m loi)
+  (cond [(empty? loi) false]
+        [else
+         (or (and (<= (abs (- (missile-x m) (invader-x (first loi)))) INVADER-WIDTH/2)
+                  (<= (abs (- (invader-y (first loi)) (missile-y m))) HIT-RANGE))
+             (missile-collides? m (rest loi)))]))
 
 
 ;; ListOfInvader -> ListOfInvader
@@ -303,8 +386,8 @@
               (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1))))
 (check-expect (update-invaders (list I1 I2))
               (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1))
-                               (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2)))
-                                             (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2))))
+                    (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2)))
+                                  (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2))))
 
 ;; Template: <used template from ListOfInvader>
 
@@ -312,7 +395,7 @@
   (cond [(empty? loi) empty]
         [else
          (cons (update-invader (first loi))
-              (update-invaders (rest loi)))]))
+               (update-invaders (rest loi)))]))
 
 
 ;; Invader -> Invader
@@ -329,19 +412,19 @@
               (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2))) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2)))
 (check-expect (update-invader (make-invader (- WIDTH INVADER-WIDTH/2 1) 150 1))
               (make-invader (- (* 2 (- WIDTH INVADER-WIDTH/2)) (- WIDTH INVADER-WIDTH/2 1) (* INVADER-X-SPEED 1))
-                       (+ 150 (* INVADER-Y-SPEED (abs 1)))
-                       (* 1 -1)))
+                            (+ 150 (* INVADER-Y-SPEED (abs 1)))
+                            (* 1 -1)))
 (check-expect (update-invader (make-invader (+ INVADER-WIDTH/2 1) 150 -1))
               (make-invader (- (* 2 INVADER-WIDTH/2) (+ INVADER-WIDTH/2 1) (* INVADER-X-SPEED -1))
-                       (+ 150 (* INVADER-Y-SPEED (abs -1)))
-                       (* -1 -1)))
+                            (+ 150 (* INVADER-Y-SPEED (abs -1)))
+                            (* -1 -1)))
 
 ;; Template: <used template from Invader>
 
 (define (update-invader i)
   (update-invader-layer (invader-x i) (invader-dir i)
-            (+ (invader-x i) (* INVADER-X-SPEED (invader-dir i)))
-            (+ (invader-y i) INVADER-Y-SPEED)))
+                        (+ (invader-x i) (* INVADER-X-SPEED (invader-dir i)))
+                        (+ (invader-y i) INVADER-Y-SPEED)))
 
 
 ;; Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[-1, 1] Natural Natural
@@ -389,10 +472,10 @@
 ;; Tests:
 (check-expect (out-of-border (- WIDTH INVADER-WIDTH/2 1) 1 160 (- WIDTH INVADER-WIDTH/2))
               (make-invader (- (* 2 (- WIDTH INVADER-WIDTH/2))
-                (- WIDTH INVADER-WIDTH/2 1) (* INVADER-X-SPEED 1)) 160 -1))
+                               (- WIDTH INVADER-WIDTH/2 1) (* INVADER-X-SPEED 1)) 160 -1))
 (check-expect (out-of-border (+ INVADER-WIDTH/2 1) -1 160 INVADER-WIDTH/2)
               (make-invader (- (* 2 INVADER-WIDTH/2)
-                (+ INVADER-WIDTH/2 1) (* INVADER-X-SPEED -1)) 160 1))
+                               (+ INVADER-WIDTH/2 1) (* INVADER-X-SPEED -1)) 160 1))
 
 ;; Template:
 #;
@@ -430,7 +513,7 @@
          (update-missiles (rest lom))]
         [else
          (cons (update-missile (first lom))
-              (update-missiles (rest lom)))]))
+               (update-missiles (rest lom)))]))
 
 
 ;; Missile -> Missile
@@ -465,12 +548,12 @@
 (check-random (create-invader empty (random INVADE-RATE))
               (if (< (random INVADE-RATE) 3)
                   (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                          (- 0 (* INVADER-HEIGHT/2 2)) (- (random 3) 1)) empty)
+                                      (- 0 (* INVADER-HEIGHT/2 2)) (- (random 3) 1)) empty)
                   empty))
 (check-random (create-invader (list I1 I2) (random INVADE-RATE))
               (if (< (random INVADE-RATE) 3)
                   (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                          (- 0 (* INVADER-HEIGHT/2 2)) (- (random 3) 1)) (list I1 I2))
+                                      (- 0 (* INVADER-HEIGHT/2 2)) (- (random 3) 1)) (list I1 I2))
                   (list I1 I2)))
 
 ;; Template:
@@ -526,10 +609,10 @@
                                         (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND))))
 (check-expect (render-game G3)
               (place-image INVADER 150 100
-              (place-image INVADER 150 HEIGHT
-                           (place-image MISSILE 150 300
-                           (place-image MISSILE (invader-x I1) (+ (invader-y I1) 10)
-                                        (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND))))))
+                           (place-image INVADER 150 HEIGHT
+                                        (place-image MISSILE 150 300
+                                                     (place-image MISSILE (invader-x I1) (+ (invader-y I1) 10)
+                                                                  (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND))))))
 
 ;; Template: <used template from Game>
 
@@ -560,7 +643,7 @@
   (cond [(empty? loi) (rectangle WIDTH HEIGHT "solid" "transparent")]
         [else
          (place-image INVADER (invader-x (first loi)) (invader-y (first loi))
-              (render-invaders (rest loi)))]))
+                      (render-invaders (rest loi)))]))
 
 
 ;; ListOfMissile -> Image
@@ -583,7 +666,7 @@
   (cond [(empty? lom) (rectangle WIDTH HEIGHT "solid" "transparent")]
         [else
          (place-image MISSILE (missile-x (first lom)) (missile-y (first lom))
-              (render-missiles (rest lom)))]))
+                      (render-missiles (rest lom)))]))
 
 
 ;; Game KeyEvent -> Game
@@ -755,4 +838,4 @@
   (cond [(empty? loi) false]
         [else
          (or (>= (invader-y (first loi)) (- HEIGHT INVADER-HEIGHT/2))
-              (check-invaders-y (rest loi)))]))
+             (check-invaders-y (rest loi)))]))
