@@ -21,6 +21,8 @@
 
 (define INVADE-RATE 100)
 
+(define BORDER_WIDTH 10)
+
 (define BACKGROUND (empty-scene WIDTH HEIGHT))
 
 (define INVADER
@@ -44,46 +46,54 @@
 (define MISSILE-WIDTH/2 (/ (image-width MISSILE) 2))
 (define MISSILE-HEIGHT/2 (/ (image-height MISSILE) 2))
 
+(define SCOREBOARD-HEIGHT 50)
+(define FONT-SIZE 34)
+(define FONT-COLOR "black")
+
+(define HITTING-POINTS 10)
+(define MISSING-POINTS -1)
+
 
 ;; =================
 ;; Data Definitions:
 
 (define-struct tank (x dir))
-;; Tank is (make-tank Natural[TANK-WIDTH/2, WIDTH - TANK-WIDTH/2] Integer[-1, 1])
+;; Tank is (make-tank Natural[TANK-WIDTH/2, WIDTH - TANK-WIDTH/2] Integer[-1, 1]\[0])
 ;; interp. the tank location is x, HEIGHT - TANK-HEIGHT/2 in screen coordinates
-;;         the tank moves TANK-SPEED pixels per clock tick left if dir -1, right if dir 1
+;;         the tank moves TANK-SPEED pixels per clock tick left if dir = -1, right if dir = 1
 
 ;; Examples:
-(define T0 (make-tank (/ WIDTH 2) 1))   ;center going right
-(define T1 (make-tank 50 1))            ;going right
-(define T2 (make-tank 50 -1))           ;going left
+(define T0 (make-tank (/ WIDTH 2) 1)) ; center going right
+(define T1 (make-tank 50 1))          ; going right
+(define T2 (make-tank 50 -1))         ; going left
 
 ;; Template:
 #;
 (define (fn-for-tank t)
-  (... (tank-x t)       ; [TANK-WIDTH/2, WIDTH - TANK-WIDTH/2]
-       (tank-dir t)))   ; Integer
+  (... (tank-x t)     ; Natural[TANK-WIDTH/2, WIDTH - TANK-WIDTH/2]
+       (tank-dir t))) ; Integer[-1, 1]\[0]
 
 ;; Template rules used:
 ;; - compound: 2 fields
 
 
 (define-struct invader (x y dir))
-;; Invader is (make-invader Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[- 2 * INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2] Integer[-1, 1])
+;; Invader is (make-invader Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[-2 * INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2] Integer[-1, 1]\[0])
 ;; interp. the invader is at (x, y) in screen coordinates
-;;         the invader moves along x by dx pixels per clock tick
+;;         the invader moves along x by INVADER-X-SPEED pixels per clock tick left if dir = -1, right if dir = 1
+;;         the invader moves along y by INVADER-Y-SPEED pixels per clock tick
 
 ;; Examples:
-(define I1 (make-invader 150 100 1))           ;not landed, moving right
-(define I2 (make-invader 150 HEIGHT -1))       ;exactly landed, moving left
-(define I3 (make-invader 150 (+ HEIGHT 10) 1)) ;> landed, moving right
+(define I1 (make-invader 150 100 1))                          ; not landed, moving right
+(define I2 (make-invader 150 (- HEIGHT INVADER-HEIGHT/2) -1)) ; landed, moving left
+(define I3 (make-invader 150 150 1))                          ; not landed, moving left
 
 ;; Template:
 #;
 (define (fn-for-invader i)
-  (... (invader-x i)       ; Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2]
-       (invader-y i)       ;Integer[- 2 * INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2]
-       (invader-dir i)))    ; Integer[-1, 1]
+  (... (invader-x i)     ; Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2]
+       (invader-y i)     ; Integer[-2 * INVADER-HEIGHT/2, HEIGHT - INVADER-HEIGHT/2]
+       (invader-dir i))) ; Integer[-1, 1]\[0]
 
 ;; Template rules used:
 ;; - compound: 3 fields
@@ -117,18 +127,18 @@
 
 
 (define-struct missile (x y))
-;; Missile is (make-missile Natural[MISSILE-WIDTH/2, WIDTH - MISSILE-WIDTH/2] Natural[MISSILE-HEIGHT/2, HEIGHT - MISSILE-HEIGHT/2])
-;; interp. the missile's location is x y in screen coordinates
+;; Missile is (make-missile Natural[TANK-WIDTH/2, WIDTH - TANK-WIDTH/2] Integer[-2 * MISSILE-HEIGHT/2, HEIGHT - TANK-HEIGHT/2])
+;; interp. the missile's location is (x, y) in screen coordinates
 
 ;; Examples:
-(define M1 (make-missile 150 300))                               ;not hit U1
-(define M2 (make-missile (invader-x I1) (+ (invader-y I1) 10)))  ;exactly hit U1
-(define M3 (make-missile (invader-x I1) (+ (invader-y I1)  5)))  ;> hit U1
+(define M1 (make-missile 150 300))                               ;not hit I1
+(define M2 (make-missile (invader-x I1) (+ (invader-y I1) 10)))  ;exactly hit I1, 10 is the HIT-RANGE
+(define M3 (make-missile (invader-x I1) (+ (invader-y I1)  5)))  ;> hit U1, 5 is less than HIT-RANGE
 
 ;; Template:
 #;
-(define (fn-for-missile m)            ; Natural[MISSILE-WIDTH/2, WIDTH - MISSILE-WIDTH/2]
-  (... (missile-x m) (missile-y m)))  ; Natural[MISSILE-HEIGHT/2, HEIGHT - MISSILE-HEIGHT/2]
+(define (fn-for-missile m)           ; Natural[TANK-WIDTH/2, WIDTH - TANK-WIDTH/2]
+  (... (missile-x m) (missile-y m))) ; Integer[-2 * MISSILE-HEIGHT/2, HEIGHT - TANK-HEIGHT/2]
 
 ;; Template rules used:
 ;; - compound: 2 fields
@@ -161,28 +171,31 @@
 ;; - self-reference: (rest lom) is ListOfMissile
 
 
-(define-struct game (invaders missiles tank))
-;; Game is (make-game  ListOfInvader ListOfMissile Tank)
+(define-struct game (invaders missiles tank score))
+;; Game is (make-game  ListOfInvader ListOfMissile Tank Natural[0, 9999])
 ;; interp. the current state of a space invaders game
-;;         with the current invaders, missiles and tank position
+;;         with the current invaders, missiles, tank and score
 
 ;; Examples:
-(define G0 (make-game empty empty T0))
-(define G1 (make-game empty empty T1))
-(define G2 (make-game (list I1) (list M1) T1))
-(define G3 (make-game (list I1 I2) (list M1 M2) T1))
+(define G0 (make-game empty empty T0 0))
+(define G1 (make-game empty empty T1 0))
+(define G2 (make-game (list I1) (list M1) T1 0))
+(define G3 (make-game (list I1 I2) (list M1 M2) T1 0))
+(define G4 (make-game (list I1 I2) (list M1 M2) T1 90))
 
-(define G-MAIN (make-game empty empty (make-tank (/ WIDTH 2) 0)))
+;; To start the game:
+(define G-MAIN (make-game empty empty (make-tank (/ WIDTH 2) 0) 0))
 
 ;; Template:
 #;
 (define (fn-for-game g)
   (... (fn-for-loi (game-invaders g))
        (fn-for-lom (game-missiles g))
-       (fn-for-tank (game-tank g))))
+       (fn-for-tank (game-tank g))
+       (game-score g)))
 
 ;; Template rules used:
-;; - compound: 3 fields
+;; - compound: 4 fields
 
 
 ;; =====================
@@ -208,28 +221,62 @@
 
 ;; Tests:
 (check-expect (update-game G0)
-              (make-game empty empty (update-tank T0 (tank-dir T0))))
+              (make-game empty empty (update-tank T0 (tank-dir T0)) 0))
 (check-expect (update-game G1)
-              (make-game empty empty (update-tank T1 (tank-dir T1))))
+              (make-game empty empty (update-tank T1 (tank-dir T1)) 0))
 (check-expect (update-game G2)
               (make-game (list (make-invader (+ (invader-x I1) INVADER-X-SPEED) (+ (invader-y I1) INVADER-Y-SPEED) (invader-dir I1)))
                          (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED)))
-                         (update-tank T1 (tank-dir T1))))
+                         (update-tank T1 (tank-dir T1)) 0))
 (check-expect (update-game G3)
               (make-game (list (make-invader (+ (invader-x I2) (* INVADER-X-SPEED (invader-dir I2))) (+ (invader-y I2) INVADER-Y-SPEED) (invader-dir I2)))
                          (list (make-missile (missile-x M1) (- (missile-y M1) MISSILE-SPEED)))
-                         (update-tank T1 (tank-dir T1))))
+                         (update-tank T1 (tank-dir T1)) 10))
 
 ;; Template: <used template from Game>
 
 (define (update-game g)
-  (collisions (make-game (update-invaders (game-invaders g))
-                         (update-missiles (game-missiles g))
-                         (update-tank (game-tank g) (tank-dir (game-tank g))))))
+  (update-game-layer g (update-missiles (game-missiles g))))
+
+
+;; Game ListOfMissile -> Game
+;; given a state of a game at a certain time, g, and an updated list of missiles, lom, produce an updated game
+
+;; Stub:
+#;
+(define (update-game-layer g lom) g)
+
+;; Tests:
+(check-expect (update-game-layer G0 empty)
+              (make-game (update-invaders (game-invaders G0)) empty (update-tank T0 (tank-dir T0))
+                         (update-score-missiles (game-score G0) (game-missiles G0) empty)))
+(check-expect (update-game-layer G1 empty)
+              (make-game (update-invaders (game-invaders G1)) empty (update-tank T1 (tank-dir T1))
+                         (update-score-missiles (game-score G1) (game-missiles G1) empty)))
+(check-expect (update-game-layer G2 (game-missiles G2))
+              (make-game (update-invaders (game-invaders G2)) (game-missiles G2) (update-tank T1 (tank-dir T1))
+                         (update-score-missiles (game-score G2) (game-missiles G2) (game-missiles G2))))
+(check-expect (update-game-layer G3 (list M1))
+              (make-game (update-invaders (game-invaders G3)) (list M1) (update-tank T1 (tank-dir T1))
+                         (update-score-missiles (game-score G3) (game-missiles G3) (list M1))))
+(check-expect (update-game-layer G3 empty)
+              (make-game (update-invaders (game-invaders G3)) empty (update-tank T1 (tank-dir T1))
+                         (update-score-missiles (game-score G3) (game-missiles G3) empty)))
+
+;; Template:
+#;
+(define (update-game-layer g lom)
+  (... (fn-for-game g)
+       (fn-for-lom lom)))
+
+(define (update-game-layer g lom)
+  (collisions (make-game (update-invaders (game-invaders g)) lom
+                         (update-tank (game-tank g) (tank-dir (game-tank g)))
+                         (update-score-missiles (game-score g) (game-missiles g) lom))))
 
 
 ;; Game -> Game
-;; given a state of a game at a certain time, g, create a game with filtered collisions and possible new invaders
+;; given a state of a game at a certain time, g, produce a game with filtered collisions and possible new invaders
 
 ;; Stub:
 #;
@@ -240,14 +287,38 @@
 (check-expect (collisions G1) G1)
 (check-expect (collisions G2) G2)
 (check-expect (collisions G3)
-              (make-game (list I2) (list M1) (game-tank G3)))
+              (make-game (list I2) (list M1) (game-tank G3) 10))
 
 ;; Template: <used template from Game>
 
 (define (collisions g)
-  (make-game (create-invader (collisions-invaders (game-invaders g) (game-missiles g)) (random INVADE-RATE))
+  (collisions-layer g (collisions-invaders (game-invaders g) (game-missiles g))))
+
+
+;; Game ListOfInvader -> Game
+;; given a state of a game at a certain time, g, and a new filtered list of invaders (have not been hit), loi, produce an updated game with no collisions
+
+;; Stub:
+#;
+(define (collisions-layer g loi) g)
+
+;; Tests:
+(check-expect (collisions-layer G0 empty) G0)
+(check-expect (collisions-layer G1 empty) G1)
+(check-expect (collisions-layer G2 (game-invaders G2)) G2)
+(check-expect (collisions-layer G3 (list I2))
+              (make-game (list I2) (list M1) T1 10))
+
+;; Template:
+#;
+(define (collisions-layer g loi)
+  (... (fn-for-game g)
+       (fn-for-loi loi)))
+
+(define (collisions-layer g loi)
+  (make-game (create-invader loi (random INVADE-RATE))
              (collisions-missiles (game-missiles g) (game-invaders g))
-             (game-tank g)))
+             (game-tank g) (update-score-invaders (game-score g) (game-invaders g) loi)))
 
 
 ;; ListOfInvader ListOfMissile -> ListOfInvader
@@ -314,7 +385,8 @@
 
 ;; ListOfMissile ListOfInvader -> ListOfMissile
 ;; filter the given list of missiles, lom, for any missile that has hit an invader in the given list of invaders, loi
-;;        "hit" means:
+;;        "hit" means: comparing the horizontal and vertical distances between the missile and the first invader
+;;                     to certain thresholds (half of the invader's width and an acceptable range on the y-axis)
 
 ;; Stub:
 #;
@@ -460,7 +532,7 @@
          (out-of-border x dir next-y (- WIDTH INVADER-WIDTH/2))]))
 
 
-;;  Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[-1, 1] Natural (INVADER-WIDTH/2 || WIDTH - INVADER-WIDTH/2)
+;; Natural[INVADER-WIDTH/2, WIDTH - INVADER-WIDTH/2] Integer[-1, 1] Natural (INVADER-WIDTH/2 || WIDTH - INVADER-WIDTH/2)
 ;; produce the next position of an invader whose predicted position is out of bounds
 ;;         either less than INVADER-WIDTH/2
 ;;         or greater than WIDTH - INVADER-WIDTH/2
@@ -535,7 +607,57 @@
   (make-missile (missile-x m) (- (missile-y m) MISSILE-SPEED)))
 
 
-;; ListOfInvader Natural[0, INVADE-RATE] -> ListOfInvader
+;; Natural[0, 9999] ListOfInvader ListOfInvader -> Natural[0, 9999]
+;; given a score, s, an old list of invaders, loi, and a new list of invaders, new-loi, produce the new score
+;; ASSUME: the length of new-loi is always smaller or equal than the lenght of loi
+
+;; Stub:
+#;
+(define (update-score-invaders s loi new-loi) s)
+
+;; Tests:
+(check-expect (update-score-invaders 0 (list I1) (list I1)) 0)
+(check-expect (update-score-invaders 0 (list I1) empty) 10)
+(check-expect (update-score-invaders 347 (list I1 I2) empty) 367)
+
+;; Template:
+#;
+(define (update-score-invaders s loi new-loi)
+  (... s
+       (fn-for-loi loi)
+       (fn-for-loi new-loi)))
+
+(define (update-score-invaders s loi new-loi)
+  (+ s (* (- (length loi) (length new-loi)) HITTING-POINTS)))
+
+
+;; Natural[0, 9999] ListOfMissile ListOfMissile -> Natural[0, 9999]
+;; given a score, s, an old list of missiles, lom, and a new list of missiles, new-lom, produce the new score
+;; ASSUME: the length of new-lom is always smaller or equal than the lenght of lom
+
+;; Stub:
+#;
+(define (update-score-missiles s loi new-loi) s)
+
+;; Tests:
+(check-expect (update-score-missiles 0 (list M1) (list M1)) 0)
+(check-expect (update-score-missiles 0 (list M1) empty) 0)
+(check-expect (update-score-missiles 347 (list M1 M2) empty) 345)
+
+;; Template:
+#;
+(define (update-score-missiles s lom new-lom)
+  (... s
+       (fn-for-lom lom)
+       (fn-for-lom new-lom)))
+
+(define (update-score-missiles s lom new-lom)
+  (if (>= (+ s (* (- (length lom) (length new-lom)) MISSING-POINTS)) 0)
+      (+ s (* (- (length lom) (length new-lom)) MISSING-POINTS))
+      0))
+
+
+;; ListOfInvader Natural[0, INVADE-RATE) -> ListOfInvader
 ;; create invader and add it to given list of invaders, loi
 ;;        if the given random number is less than 3
 ;;        this is used to only create an invader 3/100 times every clock tick
@@ -569,7 +691,7 @@
       loi))
 
 
-;; Natural[0, 3] -> Integer =1 || =-1
+;; Natural[0, 3] -> (Integer =1 || =-1)
 ;; given a random natural number between 0 and 3, n, produce either 1 or -1
 
 ;; Stub:
@@ -600,27 +722,32 @@
 
 ;; Tests:
 (check-expect (render-game G0)
-              (place-image TANK (/ WIDTH 2) (- HEIGHT TANK-HEIGHT/2) BACKGROUND))
+              (above (render-score (game-score G0))
+                     (place-image TANK (/ WIDTH 2) (- HEIGHT TANK-HEIGHT/2) BACKGROUND)))
 (check-expect (render-game G1)
-              (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND))
+              (above (render-score (game-score G1))
+                     (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND)))
 (check-expect (render-game G2)
-              (place-image INVADER 150 100
+              (above (render-score (game-score G2))
+                     (place-image INVADER 150 100
                            (place-image MISSILE 150 300
-                                        (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND))))
+                                        (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND)))))
 (check-expect (render-game G3)
-              (place-image INVADER 150 100
-                           (place-image INVADER 150 HEIGHT
+              (above (render-score (game-score G3))
+                     (place-image INVADER 150 100
+                           (place-image INVADER 150 (- HEIGHT INVADER-HEIGHT/2)
                                         (place-image MISSILE 150 300
                                                      (place-image MISSILE (invader-x I1) (+ (invader-y I1) 10)
-                                                                  (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND))))))
+                                                                  (place-image TANK 50 (- HEIGHT TANK-HEIGHT/2) BACKGROUND)))))))
 
 ;; Template: <used template from Game>
 
 (define (render-game g)
-  (overlay (place-image TANK (tank-x (game-tank g)) (- HEIGHT TANK-HEIGHT/2)
-                        (rectangle WIDTH HEIGHT "solid" "transparent"))
-           (render-invaders (game-invaders g)) (render-missiles (game-missiles g))
-           BACKGROUND))
+  (above (render-score (game-score g))
+         (overlay (place-image TANK (tank-x (game-tank g)) (- HEIGHT TANK-HEIGHT/2)
+                               (rectangle WIDTH HEIGHT "solid" "transparent"))
+                  (render-invaders (game-invaders g)) (render-missiles (game-missiles g))
+                  BACKGROUND)))
 
 
 ;; ListOfInvader -> Image
@@ -635,7 +762,7 @@
 (check-expect (render-invaders (list I1))
               (place-image INVADER 150 100 (rectangle WIDTH HEIGHT "solid" "transparent")))
 (check-expect (render-invaders (list I1 I2))
-              (place-image INVADER 150 100 (place-image INVADER 150 HEIGHT (rectangle WIDTH HEIGHT "solid" "transparent"))))
+              (place-image INVADER 150 100 (place-image INVADER 150 (- HEIGHT INVADER-HEIGHT/2) (rectangle WIDTH HEIGHT "solid" "transparent"))))
 
 ;; Template: <used template from ListOfInvader>
 
@@ -669,6 +796,38 @@
                       (render-missiles (rest lom)))]))
 
 
+;; Natural[0, 9999] -> Image
+;; produce a scoreboard with the given score, s
+
+;; Stub:
+#;
+(define (render-score s) empty-image)
+
+;; Tests:
+(check-expect (render-score 0)
+              (overlay/align "center" "center" (text "0000" FONT-SIZE FONT-COLOR)
+                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+(check-expect (render-score 89)
+              (overlay/align "center" "center" (text "0089" FONT-SIZE FONT-COLOR)
+                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+(check-expect (render-score 457)
+              (overlay/align "center" "center" (text "0457" FONT-SIZE FONT-COLOR)
+                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+(check-expect (render-score 9999)
+              (overlay/align "center" "center" (text "9999" FONT-SIZE FONT-COLOR)
+                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+
+;; Template:
+#;
+(define (render-score s)
+  (... s))
+
+(define (render-score s)
+  (overlay (text (string-append (make-string (- 4 (string-length (number->string s))) #\0)
+                                (number->string s)) FONT-SIZE FONT-COLOR)
+           (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+
+
 ;; Game KeyEvent -> Game
 ;; produce a new missile when " " (space bar) is pressed
 ;;         a new x position for the game's tank when "arrow-left" or "arrow-right" are pressed
@@ -680,16 +839,16 @@
 
 ;; Tests:
 (check-expect (on-key-game G0 " ")
-              (make-game empty (list (make-missile (tank-x (game-tank G0)) (- HEIGHT TANK-HEIGHT/2))) T0))
+              (make-game empty (list (make-missile (tank-x (game-tank G0)) (- HEIGHT TANK-HEIGHT/2))) T0 0))
 (check-expect (on-key-game G1 "left")
-              (make-game empty empty (make-tank (+ (tank-x (game-tank G1)) -2) -1)))
+              (make-game empty empty (make-tank (+ (tank-x (game-tank G1)) -2) -1) 0))
 (check-expect (on-key-game G2 " ")
               (make-game (list I1)
-                         (cons (make-missile (tank-x (game-tank G2)) (- HEIGHT TANK-HEIGHT/2)) (list M1)) T1))
+                         (cons (make-missile (tank-x (game-tank G2)) (- HEIGHT TANK-HEIGHT/2)) (list M1)) T1 0))
 (check-expect (on-key-game G3 "right")
               (make-game (list I1 I2)
                          (list M1 M2)
-                         (make-tank (+ (tank-x (game-tank G3)) 2) 1)))
+                         (make-tank (+ (tank-x (game-tank G3)) 2) 1) 0))
 (check-expect (on-key-game G2 "r") G2)
 
 ;; Template:
@@ -704,13 +863,16 @@
   (cond [(key=? " " ke)
          (make-game (game-invaders g)
                     (shoot-missile (game-missiles g) (game-tank g))
-                    (game-tank g))]
+                    (game-tank g)
+                    (game-score g))]
         [(key=? "left" ke)
          (make-game (game-invaders g) (game-missiles g)
-                    (update-tank (game-tank g) -1))]
+                    (update-tank (game-tank g) -1)
+                    (game-score g))]
         [(key=? "right" ke)
          (make-game (game-invaders g) (game-missiles g)
-                    (update-tank (game-tank g) 1))]
+                    (update-tank (game-tank g) 1)
+                    (game-score g))]
         [else g]))
 
 
