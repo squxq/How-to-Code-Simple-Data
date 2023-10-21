@@ -960,7 +960,7 @@ width times its height.
 
 This module is a step back from the details of the functions operating on lists that have been designed, with the purpose of exploring a more abstract way of looking at those functions. A view of those functions that is less detailed but still captures the essential structure and tells something important about what the functions do.
 
-![Untitled](positionsListTemplates/positionsListTemplates.png)
+![Positions List Templates](positionsListTemplates/positionsListTemplates.png)
 
 The red spot is called “base” because what is sitting in the red spot is the base case result of this function - what the function produces in the base case.
 
