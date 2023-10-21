@@ -58,6 +58,9 @@
 (define GAME-OVER-FONT-COLOR "red")
 (define GAME-OVER-BACKGROUND (empty-scene WIDTH (+ HEIGHT SCOREBOARD-HEIGHT)))
 
+(define SPAWNING-DIFFICULTY 3)
+(define SPEED-DIFFICULTY 9)
+
 
 ;; =================
 ;; Data Definitions:
@@ -674,7 +677,7 @@
 
 ;; ListOfInvader Natural[0, INVADE-RATE) -> ListOfInvader
 ;; create invader and add it to given list of invaders, loi
-;;        if the given random number is less than 3
+;;        if the given random number is less than SPAWNING_DIFFICULTY
 ;;        this is used to only create an invader 3/100 times every clock tick
 
 ;; Stub:
@@ -685,10 +688,10 @@
 (check-random (create-invader empty 84) empty)
 (check-random (create-invader empty 0)
               (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                                      (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 2)) (/ (+ 5 (random 11)) 10) (/ (+ 5 (random 11)) 10)) empty))
+                                      (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 2)) (/ (+ 5 (random SPEED-DIFFICULTY)) 10) (/ (+ 5 (random SPEED-DIFFICULTY)) 10)) empty))
 (check-random (create-invader (list I1 I2) 2)
               (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                                      (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 2)) (/ (+ 5 (random 11)) 10) (/ (+ 5 (random 11)) 10)) (list I1 I2)))
+                                      (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 2)) (/ (+ 5 (random SPEED-DIFFICULTY)) 10) (/ (+ 5 (random SPEED-DIFFICULTY)) 10)) (list I1 I2)))
 
 ;; Template:
 #;
@@ -697,9 +700,9 @@
        (fn-for-loi loi)))
 
 (define (create-invader loi r)
-  (if (< r 3)
+  (if (< r SPAWNING-DIFFICULTY)
       (cons (make-invader (+ (random (- WIDTH (* INVADER-WIDTH/2 2))) INVADER-WIDTH/2)
-                          (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 2)) (/ (+ 5 (random 11)) 10) (/ (+ 5 (random 11)) 10)) loi)
+                          (- 0 (* INVADER-HEIGHT/2 2)) (invader-direction (random 2)) (/ (+ 5 (random SPEED-DIFFICULTY)) 10) (/ (+ 5 (random SPEED-DIFFICULTY)) 10)) loi)
       loi))
 
 
