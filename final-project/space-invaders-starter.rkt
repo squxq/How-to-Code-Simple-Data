@@ -47,11 +47,16 @@
 (define MISSILE-HEIGHT/2 (/ (image-height MISSILE) 2))
 
 (define SCOREBOARD-HEIGHT 50)
-(define FONT-SIZE 34)
-(define FONT-COLOR "black")
+(define SCOREBOARD (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white"))
+(define SCORE-FONT-SIZE 34)
+(define SCORE-FONT-COLOR "black")
 
 (define HITTING-POINTS 10)
 (define MISSING-POINTS -1)
+
+(define GAME-OVER-FONT-SIZE 44)
+(define GAME-OVER-FONT-COLOR "red")
+(define GAME-OVER-BACKGROUND (empty-scene WIDTH (+ HEIGHT SCOREBOARD-HEIGHT)))
 
 
 ;; =================
@@ -205,11 +210,11 @@
 ;; start the world with: (main G-MAIN)
 
 (define (main g)
-  (big-bang g                   ; Game
-    (on-tick update-game)       ; Game -> Game
-    (to-draw render-game)       ; Game -> Image
-    (on-key on-key-game)        ; Game KeyEvent -> Game
-    (stop-when stop-game)))     ; Game -> Boolean
+  (big-bang g                             ; Game
+    (on-tick update-game)                 ; Game -> Game
+    (to-draw render-game)                 ; Game -> Image
+    (on-key on-key-game)                  ; Game KeyEvent -> Game
+    (stop-when stop-game game-over)))     ; Game -> Boolean
 
 
 ;; Game -> Game
@@ -805,17 +810,17 @@
 
 ;; Tests:
 (check-expect (render-score 0)
-              (overlay/align "center" "center" (text "0000" FONT-SIZE FONT-COLOR)
-                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+              (overlay/align "center" "center" (text "0000" SCORE-FONT-SIZE SCORE-FONT-COLOR)
+                       SCOREBOARD))
 (check-expect (render-score 89)
-              (overlay/align "center" "center" (text "0089" FONT-SIZE FONT-COLOR)
-                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+              (overlay/align "center" "center" (text "0089" SCORE-FONT-SIZE SCORE-FONT-COLOR)
+                       SCOREBOARD))
 (check-expect (render-score 457)
-              (overlay/align "center" "center" (text "0457" FONT-SIZE FONT-COLOR)
-                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+              (overlay/align "center" "center" (text "0457" SCORE-FONT-SIZE SCORE-FONT-COLOR)
+                       SCOREBOARD))
 (check-expect (render-score 9999)
-              (overlay/align "center" "center" (text "9999" FONT-SIZE FONT-COLOR)
-                       (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+              (overlay/align "center" "center" (text "9999" SCORE-FONT-SIZE SCORE-FONT-COLOR)
+                       SCOREBOARD))
 
 ;; Template:
 #;
@@ -823,9 +828,32 @@
   (... s))
 
 (define (render-score s)
-  (overlay (text (string-append (make-string (- 4 (string-length (number->string s))) #\0)
-                                (number->string s)) FONT-SIZE FONT-COLOR)
-           (rectangle WIDTH SCOREBOARD-HEIGHT "solid" "white")))
+  (overlay (text (create-score (number->string s)) SCORE-FONT-SIZE SCORE-FONT-COLOR)
+           SCOREBOARD))
+
+
+;; String -> String
+;; given a string of a score number, s, produce its correct display form always containing 4 characters
+;; ASSUME: the given string will always consist of number characters: [0, 9]; and its length will always be within [1, 4]
+
+;; Stub:
+#;
+(define (create-score s) "0000")
+
+;; Tests:
+(check-expect (create-score "0") "0000")
+(check-expect (create-score "1") "0001")
+(check-expect (create-score "84") "0084")
+(check-expect (create-score "479") "0479")
+(check-expect (create-score "9999") "9999")
+
+;; Template:
+#;
+(define (create-score s)
+  (... s))
+
+(define (create-score s)
+  (string-append (make-string (- 4 (string-length s)) #\0) s))
 
 
 ;; Game KeyEvent -> Game
@@ -1001,3 +1029,28 @@
         [else
          (or (>= (invader-y (first loi)) (- HEIGHT INVADER-HEIGHT/2))
              (check-invaders-y (rest loi)))]))
+
+
+;; Game -> Image
+;; produce the game over screen given a state of a game, g
+
+;; Stub:
+#;
+(define (game-over g) empty-image)
+
+;; Tests:
+(check-expect (game-over G0)
+              (place-image (above (text "GAME OVER" GAME-OVER-FONT-SIZE GAME-OVER-FONT-COLOR) (text (string-append "SCORE: "
+                                  (create-score (number->string (game-score G0)))) SCORE-FONT-SIZE SCORE-FONT-COLOR))
+                           (/ WIDTH 2) (/ (+ HEIGHT SCOREBOARD-HEIGHT) 2) GAME-OVER-BACKGROUND))
+(check-expect (game-over G4)
+              (place-image (above (text "GAME OVER" GAME-OVER-FONT-SIZE GAME-OVER-FONT-COLOR) (text (string-append "SCORE: "
+                                  (create-score (number->string (game-score G4)))) SCORE-FONT-SIZE SCORE-FONT-COLOR))
+                           (/ WIDTH 2) (/ (+ HEIGHT SCOREBOARD-HEIGHT) 2) GAME-OVER-BACKGROUND))
+
+;; Template: <used template from Game>
+
+(define (game-over g)
+  (place-image (above (text "GAME OVER" GAME-OVER-FONT-SIZE GAME-OVER-FONT-COLOR) (text (string-append "SCORE: "
+                      (create-score (number->string (game-score g)))) SCORE-FONT-SIZE SCORE-FONT-COLOR))
+               (/ WIDTH 2) (/ (+ HEIGHT SCOREBOARD-HEIGHT) 2) GAME-OVER-BACKGROUND))
